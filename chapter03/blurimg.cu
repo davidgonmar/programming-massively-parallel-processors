@@ -1,8 +1,9 @@
 #define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
+#include "../common/stb_image.h"
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "cuda.h"
-#include "stb_image_write.h"
+#include "../common/stb_image_write.h"
+#include "../common/utils.cuh"
 #include <iostream>
 
 #define BLUR_SIZE 4
@@ -43,35 +44,34 @@ __global__ void blurImgKernel(unsigned char *in, unsigned char *out,
 
 void blurImg(unsigned char *in, unsigned char *out, unsigned int height,
              unsigned int width) {
-  unsigned char *d_in, *d_out;
-  cudaMalloc(&d_in, sizeof(unsigned char) * height * width * CHANNELS);
-  cudaMalloc(&d_out, sizeof(unsigned char) * height * width * CHANNELS);
-
-  cudaMemcpy(d_in, in, sizeof(unsigned char) * height * width * CHANNELS,
-             cudaMemcpyHostToDevice);
+  sptr<unsigned char> d_in = cuda_ptr_from_host(in, height * width * CHANNELS);
+  sptr<unsigned char> d_out = cuda_ptr_empty<unsigned char>(height * width * CHANNELS);
 
   dim3 threads(16, 16, 1);
   dim3 blocks(ceil(width / threads.x), ceil(height / threads.y), 1);
 
-  blurImgKernel<<<blocks, threads>>>(d_in, d_out, height, width);
+  blurImgKernel<<<blocks, threads>>>(d_in.get(), d_out.get(), height, width);
 
-  std::cout << "printing out" << std::endl;
-
-  cudaMemcpy(out, d_out, sizeof(unsigned char) * height * width * CHANNELS,
-             cudaMemcpyDeviceToHost);
+  copy_to_host(out, d_out, height * width * CHANNELS);
 }
 
 int main(int argc, char **argv) {
   // read an image
   int width, height, nChannels;
 
-  unsigned char *data =
-      stbi_load("doggrayscale.jpg", &width, &height, &nChannels, 0);
+  // read from args the input and output file
+  if (argc != 3) {
+    std::cout << "Usage: ./blurimg <input_file> <output_file>" << std::endl;
+    return -1;
+  }
+
+  unsigned char *data = stbi_load(argv[1], &width, &height, &nChannels, 0);
 
   if (data == NULL) {
     std::cout << "Failed to load image" << std::endl;
     return -1;
   }
+
   std::cout << "width: " << width << std::endl;
   std::cout << "height: " << height << std::endl;
   std::cout << "nChannels: " << nChannels << std::endl;
@@ -81,7 +81,5 @@ int main(int argc, char **argv) {
   std::cout << "Converting to greyscale" << std::endl;
   blurImg(data, out, height, width);
 
-  std::cout << "Saving image. Printing raw data:" << std::endl;
-
-  stbi_write_jpg("dogblur.jpg", width, height, CHANNELS, out, 100);
+  stbi_write_jpg(argv[2], width, height, CHANNELS, out, 100);
 }

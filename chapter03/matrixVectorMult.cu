@@ -28,8 +28,7 @@ __global__ void matrixVectorMultKernel(float *vector, float *matrix, float *out,
   if (row >= size)
     return;
 
-  float sum =
-      0.0f; // Accum in a separate float instead of on out to save mem access
+  float sum = 0.0f; // Accum in a separate float instead of on out to save mem access
   for (int matCol = 0; matCol < size; matCol++) {
     sum += matrix[row * size + matCol] * vector[matCol];
   }

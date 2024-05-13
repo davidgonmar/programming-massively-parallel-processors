@@ -1,15 +1,6 @@
 #include "cuda.h"
 #include <iostream>
-
-#define CUDA_CHECK_ERROR(code)                                                 \
-  {                                                                            \
-    if (code != cudaSuccess) {                                                 \
-      printf("Error %d: %s in %s at line %d\n", code,                          \
-             cudaGetErrorString(code), __FILE__, __LINE__);                    \
-      exit(code);                                                              \
-    }                                                                          \
-  }
-
+#include "../common/utils.cuh"
 
 __global__ void squaredMatMulKernel(float *A, float *B, float *out, int size) {
   int col = blockDim.x * blockIdx.x + threadIdx.x;
